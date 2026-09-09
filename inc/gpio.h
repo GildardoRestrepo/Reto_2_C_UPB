@@ -83,27 +83,6 @@ void gpio_config_group(GPIO_TypeDef *port,
                        GpioSpeed_t   speed);
 
 /**
- * @brief Pone a 1 los pines indicados en @p mask.
- *
- * BSRR, mitad baja (bits 0..15): escribir 1 pone el pin a 1, escribir 0 no hace
- * nada. Una sola escritura, sin leer-modificar-escribir.
- */
-static inline void gpio_set(GPIO_TypeDef *port, uint32_t mask)
-{
-    port->BSRR = mask;
-}
-
-/**
- * @brief Pone a 0 los pines indicados en @p mask.
- *
- * BSRR, mitad alta (bits 16..31): escribir 1 pone el pin a 0.
- */
-static inline void gpio_clear(GPIO_TypeDef *port, uint32_t mask)
-{
-    port->BSRR = (mask << 16u);
-}
-
-/**
  * @brief Escribe @p value solo en los pines de @p mask, en UNA sola operacion.
  *
  * CRITICO: esta es la primitiva sobre la que se apoyan los dos multiplexados.

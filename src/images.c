@@ -86,7 +86,7 @@ const uint8_t img_idle_corners[8] =
  * Escritos en binario, como el resto: el codigo fuente ES el dibujo, y ajustar
  * un trazo que no se lee bien en la matriz es mover un bit.
  * -------------------------------------------------------------------------- */
-const uint8_t img_digit[10][8] =
+const uint8_t img_digit[IMG_DIGIT_COUNT][8] =
 {
     {   /* 0 */
         0b00111000,

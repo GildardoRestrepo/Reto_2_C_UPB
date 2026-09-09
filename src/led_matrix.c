@@ -26,10 +26,7 @@ static uint8_t s_framebuffer[MATRIX_ROWS];
  */
 static uint8_t s_active_row;
 
-#if (MATRIX_COL_REVERSE == 0)
 static uint8_t reverse_byte(uint8_t value);
-#endif
-static uint8_t map_columns(uint8_t image_byte);
 static void    columns_off(void);
 static void    columns_write(uint8_t hw_pattern);
 static void    rows_all_off(void);
@@ -70,39 +67,18 @@ void led_matrix_clear(void)
 
 void led_matrix_show(const uint8_t *frame)
 {
-    uint8_t work[MATRIX_ROWS];
-
-    /* Paso 1: transposicion, si el montaje lo requiere.
+    /* Unica traduccion entre el bitmap y el hardware: invertir el orden de los
+     * bits de cada fila.
      *
-     * Con el convenio de images.h, el bit (7 - c) del byte r es el pixel de la
-     * fila r y la columna c. Transponer es, por tanto, llevar el pixel (c, r)
-     * al (r, c). Son 64 iteraciones, pero se ejecutan solo al cambiar de
-     * imagen, no en el multiplexado. */
-#if (MATRIX_TRANSPOSE != 0)
+     * En los bitmaps el bit 7 es la columna IZQUIERDA (ver images.h), porque asi
+     * el arreglo escrito en binario se lee igual que se ve en la matriz. En el
+     * hardware, en cambio, la columna izquierda es la primera del bus, o sea el
+     * bit 0. De ahi la inversion.
+     *
+     * Se hace aqui, al cambiar de imagen, y no en el multiplexado, que se
+     * ejecuta mil veces por segundo. */
     for (uint8_t r = 0u; r < MATRIX_ROWS; r++) {
-        uint8_t out = 0u;
-        for (uint8_t c = 0u; c < MATRIX_COLS; c++) {
-            if ((frame[c] & (uint8_t)(0x80u >> r)) != 0u) {
-                out = (uint8_t)(out | (uint8_t)(0x80u >> c));
-            }
-        }
-        work[r] = out;
-    }
-#else
-    for (uint8_t r = 0u; r < MATRIX_ROWS; r++) {
-        work[r] = frame[r];
-    }
-#endif
-
-    /* Paso 2: orden de las filas y traduccion de las columnas al orden fisico
-     * de los pines. */
-    for (uint8_t r = 0u; r < MATRIX_ROWS; r++) {
-#if (MATRIX_ROW_REVERSE == 0)
-        const uint8_t source_row = work[r];
-#else
-        const uint8_t source_row = work[(MATRIX_ROWS - 1u) - r];
-#endif
-        s_framebuffer[r] = map_columns(source_row);
+        s_framebuffer[r] = reverse_byte(frame[r]);
     }
 }
 
@@ -125,15 +101,11 @@ void led_matrix_mux_step(void)
     columns_write(s_framebuffer[s_active_row]);
 }
 
-#if (MATRIX_COL_REVERSE == 0)
 /**
  * @brief Invierte el orden de los bits de un byte (bit 7 <-> bit 0).
  *
  * Clasico intercambio por mitades, luego por pares y luego por bits: tres
  * operaciones en lugar de un bucle de ocho iteraciones.
- *
- * Solo se compila cuando hace falta: con MATRIX_COL_REVERSE a 1 el byte se
- * escribe tal cual y esta funcion sobraria.
  */
 static uint8_t reverse_byte(uint8_t value)
 {
@@ -141,24 +113,6 @@ static uint8_t reverse_byte(uint8_t value)
     value = (uint8_t)(((value & 0xCCu) >> 2) | ((value & 0x33u) << 2));
     value = (uint8_t)(((value & 0xAAu) >> 1) | ((value & 0x55u) << 1));
     return value;
-}
-#endif
-
-/**
- * @brief Traduce un byte del convenio de los bitmaps al orden de los pines.
- *
- * En los bitmaps el bit 7 es la columna izquierda; en el hardware la columna
- * izquierda es la primera del bus, o sea el bit 0. Por eso, por defecto, hay
- * que invertir el byte. MATRIX_COL_REVERSE cancela esa inversion si el cableado
- * real resulta ser el contrario.
- */
-static uint8_t map_columns(uint8_t image_byte)
-{
-#if (MATRIX_COL_REVERSE == 0)
-    return reverse_byte(image_byte);
-#else
-    return image_byte;
-#endif
 }
 
 /** @brief Apaga las ocho columnas (blanking). */

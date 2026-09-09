@@ -31,8 +31,8 @@ extern const uint8_t img_test_row0[8];
  *
  * Es la imagen mas util de las tres porque no coincide consigo misma bajo
  * ninguna transformacion: si sale espejada en horizontal, en vertical, girada o
- * transpuesta, se ve a simple vista cual de las cuatro cosas paso. Con eso se
- * ajustan MATRIX_ROW_REVERSE y MATRIX_COL_REVERSE en board.h.
+ * transpuesta, se ve a simple vista cual de las cuatro cosas paso, y por tanto
+ * como hay que recolocar el cableado.
  */
 extern const uint8_t img_test_f[8];
 
@@ -75,7 +75,10 @@ extern const uint8_t img_idle_corners[8];
  * a 5 y las filas 0 a 6, dejando la ultima fila libre: con 8x8 LED, apurar el
  * borde hace que los trazos se toquen y los digitos dejen de distinguirse.
  */
-extern const uint8_t img_digit[10][8];
+/** Numero de digitos disponibles en img_digit. */
+#define IMG_DIGIT_COUNT     10u
+
+extern const uint8_t img_digit[IMG_DIGIT_COUNT][8];
 
 /** @brief Visto: ACCESO PERMITIDO. */
 extern const uint8_t img_check[8];

@@ -19,9 +19,8 @@ tags:
 # Decisiones de diseño
 
 > [!success] Resumen
-> Registro de **por qué** el firmware es como es. Cada entrada dice qué se
-> decidió, qué alternativas había y qué se gana con la elegida. Es el material
-> de respuesta para la sustentación.
+> Registro de **por qué** del firmware. Cada entrada dice qué se
+> decidió, qué alternativas había y qué se gana con cada elección.
 
 ---
 
@@ -39,30 +38,18 @@ mensaje de error. Para conmutar filas cada milisegundo, 16 MHz sobran: el
 multiplexado consume unas decenas de instrucciones por tick sobre un presupuesto
 de 16 000 ciclos.
 
-**Efecto colateral favorable.** El proyecto no incluye `system_stm32f4xx.c`, así
-que `SystemInit` no llega a ejecutarse (el enlazador convierte la llamada en un
-`nop`). Como `SystemInit` tampoco toca el PLL, el resultado es coherente: el
-reloj se queda donde lo asume el diseño.
-
 ---
-
 ## 2. Base de tiempo única: SysTick a 1 ms
 
 **Decidido.** Un solo temporizador para todo el sistema, a 1 ms.
-
 **Alternativa descartada:** un `TIM` dedicado para el refresco de la matriz.
-
 **Justificación.** Con 1 ms se cubren a la vez las dos exigencias temporales del
 reto sin necesidad de un segundo periférico:
 
-| Tarea | Cadencia | Resultado |
-|---|---|---|
-| Matriz | 1 fila por tick | 125 Hz de refresco, sin parpadeo perceptible |
-| Teclado | 1 semifase por tick | Barrido completo cada 8 ms |
-
-Un `TIM` daría un refresco más estable frente al jitter del bucle, a cambio de
-configurar más registros y de alejarse del *"el `while(1)` ejecuta las máquinas
-de estados"* que describe el enunciado.
+| Tarea   | Cadencia            | Resultado                                    |
+| ------- | ------------------- | -------------------------------------------- |
+| Matriz  | 1 fila por tick     | 125 Hz de refresco, sin parpadeo perceptible |
+| Teclado | 1 semifase por tick | Barrido completo cada 8 ms                   |
 
 ---
 
@@ -123,24 +110,6 @@ darse. Cuesta lo mismo de programar: un bit en `OTYPER`.
 | Teclado filas F0–F3 | `PB6`–`PB9` |
 | Teclado columnas C0–C3 | `PA1`–`PA4` |
 
-**Justificación.** Cada bus es un grupo contiguo dentro de su puerto, de modo que
-se escribe con una sola operación sobre `BSRR` y su máscara es un byte o un
-nibble desplazado. `PD0`–`PD7` es el byte bajo del puerto D y `PE8`–`PE15` el
-byte alto del E.
-
-**Revisión de la Fase 1.** La propuesta inicial situaba las filas de la matriz en
-`PC0`–`PC7`. Al revisar el orden físico de los conectores 2x24 se vio que `PC0`
-a `PC3` están seguidos pero después el header salta a `VREF-`, y que `PC4`–`PC8`
-quedan repartidos por otras zonas. `PE8`–`PE15` sí salen como cuatro parejas
-seguidas. **Lección: la contigüidad en la numeración del puerto no implica
-contigüidad en el conector.**
-
-Se descartó `PA0`–`PA7` por tres motivos: tampoco son contiguos en el header,
-`PA6` y `PA7` llevan los LEDs D2 y D3 de la placa, y `PA0` es el botón WK_UP.
-
-`PA1`–`PA4` se mantiene para las columnas del teclado pese a no ser contiguo en
-el conector, por decisión explícita. Moverlo a `PC0`–`PC3` sería cambiar dos
-`#define` en `board.h`.
 
 ---
 
@@ -173,44 +142,32 @@ justo lo que hacen las fases 2 y 3.
 **Decidido.** Los LED van directamente entre el pin de columna y el de fila, sin
 resistencia en serie.
 
-**Justificación.** Es el montaje disponible, y las pruebas no han dañado ningún
-LED. La corriente queda limitada por la resistencia interna del driver de cada
-pin (unos 25–40 Ω por lado) y el duty de 1/8 del multiplexado mantiene bajo el
-promedio.
-
-**Consecuencias, asumidas conscientemente:**
-
-1. **Brillo dependiente del contenido.** Con un LED encendido en la fila activa
-   circulan unos 20 mA; con ocho, el pin de fila los sume todos, su tensión sube
-   y la corriente por LED cae a menos de la mitad. Una fila poco poblada se ve
-   más brillante que una llena.
-2. **Fuera de especificación.** El pico por el pin de fila queda por encima de
-   los 25 mA que fija el datasheet. Funciona, pero es zona sin garantía del
-   fabricante.
-
-**Mitigación si hiciera falta:** ocho resistencias de 220–330 Ω en las columnas
-uniformizan el brillo y devuelven el montaje al rango especificado, sin cambiar
-una línea de código.
 
 ---
 
-## 10. Tres interruptores de orientación en lugar de recablear
+## 10. Orientación de la matriz: resuelta en el cableado
 
-**Decidido.** `MATRIX_TRANSPOSE`, `MATRIX_ROW_REVERSE` y `MATRIX_COL_REVERSE` en
-`board.h`, aplicados en `led_matrix_show()`.
+**Historial de esta decisión.** Durante la Fase 2 el módulo llevó tres
+interruptores en `board.h` —`MATRIX_TRANSPOSE`, `MATRIX_ROW_REVERSE` y
+`MATRIX_COL_REVERSE`— que cubrían las ocho orientaciones posibles de un montaje
+8x8. Existían porque, con 16 hilos, la orientación real no se conoce hasta
+encender la matriz, y así ningún resultado obligaba a recablear ni a reescribir
+bitmaps.
 
-**Justificación.** Con 16 hilos, la orientación real del montaje no se conoce
-hasta encenderlo. Entre los tres flags se cubren las **ocho** orientaciones
-posibles de una matriz 8x8, así que ningún resultado de las pruebas obliga a
-recablear ni a reescribir bitmaps: se cambia un `0` por un `1`.
+**Resultado de la Fase 2.** Los tres quedaron en `0`: el montaje coincidía con
+el convenio de los bitmaps. Los fallos que aparecieron fueron de cableado —dos
+columnas intercambiadas y una fila mal conectada— y se corrigieron en la
+protoboard, que es donde estaba el problema.
 
-**Dónde se aplican y por qué ahí.** En `led_matrix_show()`, que se ejecuta al
-cambiar de imagen, y no en `led_matrix_mux_step()`, que corre mil veces por
-segundo. La transposición son 64 iteraciones que de este modo no cuestan nada.
+**Decidido en la Fase 6.** Los tres interruptores **se eliminan**. Cumplida su
+función de diagnóstico, mantener un mecanismo configurable para algo que ya está
+fijo solo añade ramas de código que nunca se ejercitan. La orientación se
+resuelve en el montaje.
 
-**Resultado en la Fase 2.** Los tres quedaron en `0`: el montaje coincide con el
-convenio de los bitmaps. Los fallos observados fueron de cableado (dos columnas
-intercambiadas y una fila mal conectada), no de orientación.
+**Lo que queda.** Una única traducción, incondicional, en `led_matrix_show()`:
+invertir el orden de los bits de cada fila, porque en el bitmap el bit 7 es la
+columna izquierda y en el hardware esa columna es `PD0`. Ocho líneas en lugar de
+cuarenta.
 
 ---
 
@@ -354,7 +311,64 @@ sistema es tocar solo `render()` y los bitmaps.
 
 ---
 
-## 21. LED D2 solo para diagnóstico
+## 21. La coordinación vive en `master_fsm`, no en `main`
+
+**Decidido.** `main.c` se reduce a arrancar la máquina maestra y darle el latido
+de 1 ms. Toda la coordinación —orden de inicialización, orden de despacho y
+traducción de vista a bitmap— vive en `master_fsm.c`.
+
+**Justificación.** El enunciado exige una máquina de estados maestra, y una capa
+de integración con nombre propio hace visible el reparto: `system_fsm` decide
+QUÉ mostrar sin saber que existe una matriz de LED; `master_fsm` decide CÓMO se
+dibuja sin saber que existe una contraseña; `main.c` no sabe ninguna de las dos
+cosas. El resultado es un `main` de 35 líneas que se lee de una sentada.
+
+**Detalle de implementación.** `led_matrix_mux_step()` se llama **fuera** del
+`switch` de estados. Se refresca la matriz en todos ellos, también durante el
+autotest y durante los 3 s de la imagen de resultado: ningún estado del sistema
+congela el display.
+
+---
+
+## 22. `timebase_init()` va el último
+
+**Decidido.** El orden de inicialización es `led_matrix`, `keypad`,
+`keypad_fsm`, `system_fsm` y, al final, `timebase`.
+
+**Justificación.** `timebase_init()` arranca `SysTick`, es decir, habilita una
+interrupción. No interesa que empiece a dispararse antes de que el resto de
+módulos hayan configurado sus pines y su estado interno.
+
+---
+
+## 23. Autotest de arranque
+
+**Decidido.** `MASTER_SELFTEST` enciende los 64 LED durante 1 s en cada
+arranque, antes de pasar a régimen permanente.
+
+**Justificación.** No es decorativo. Con 16 hilos hacia la matriz, un contacto
+que se afloje se detecta en el segundo inicial en lugar de a mitad de la
+demostración. Reutiliza `img_test_all`, la misma imagen que localizó los dos
+fallos de cableado en la Fase 2.
+
+---
+
+## 24. Reto adicional no implementado
+
+**Decidido.** La Fase 7 (bloqueo temporal tras tres intentos fallidos) **no se
+realizó**, por tiempo.
+
+**Estado del código.** Quedan el valor `SYS_VIEW_LOCKED` en el enumerado de
+vistas y el contador de fallos consecutivos en `system_fsm.c`, ambos
+inalcanzables hoy. Son los únicos restos de código no ejercitado del proyecto.
+
+**Qué costaría terminarlo.** Añadir un estado a `system_fsm`, un temporizador
+software y un bitmap. **Ningún otro módulo cambiaría**, y esa es precisamente la
+prueba de que la separación por capas hace lo que promete.
+
+---
+
+## 25. LED D2 solo para diagnóstico
 
 **Decidido.** `PA6` se usa en la Fase 1 para validar la cadena de compilación y
 flasheo, y desaparece del sistema final.
