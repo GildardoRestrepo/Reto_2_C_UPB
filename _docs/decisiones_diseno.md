@@ -168,7 +168,53 @@ justo lo que hacen las fases 2 y 3.
 
 ---
 
-## 9. LED D2 solo para diagnóstico
+## 9. Matriz sin resistencias de limitación
+
+**Decidido.** Los LED van directamente entre el pin de columna y el de fila, sin
+resistencia en serie.
+
+**Justificación.** Es el montaje disponible, y las pruebas no han dañado ningún
+LED. La corriente queda limitada por la resistencia interna del driver de cada
+pin (unos 25–40 Ω por lado) y el duty de 1/8 del multiplexado mantiene bajo el
+promedio.
+
+**Consecuencias, asumidas conscientemente:**
+
+1. **Brillo dependiente del contenido.** Con un LED encendido en la fila activa
+   circulan unos 20 mA; con ocho, el pin de fila los sume todos, su tensión sube
+   y la corriente por LED cae a menos de la mitad. Una fila poco poblada se ve
+   más brillante que una llena.
+2. **Fuera de especificación.** El pico por el pin de fila queda por encima de
+   los 25 mA que fija el datasheet. Funciona, pero es zona sin garantía del
+   fabricante.
+
+**Mitigación si hiciera falta:** ocho resistencias de 220–330 Ω en las columnas
+uniformizan el brillo y devuelven el montaje al rango especificado, sin cambiar
+una línea de código.
+
+---
+
+## 10. Tres interruptores de orientación en lugar de recablear
+
+**Decidido.** `MATRIX_TRANSPOSE`, `MATRIX_ROW_REVERSE` y `MATRIX_COL_REVERSE` en
+`board.h`, aplicados en `led_matrix_show()`.
+
+**Justificación.** Con 16 hilos, la orientación real del montaje no se conoce
+hasta encenderlo. Entre los tres flags se cubren las **ocho** orientaciones
+posibles de una matriz 8x8, así que ningún resultado de las pruebas obliga a
+recablear ni a reescribir bitmaps: se cambia un `0` por un `1`.
+
+**Dónde se aplican y por qué ahí.** En `led_matrix_show()`, que se ejecuta al
+cambiar de imagen, y no en `led_matrix_mux_step()`, que corre mil veces por
+segundo. La transposición son 64 iteraciones que de este modo no cuestan nada.
+
+**Resultado en la Fase 2.** Los tres quedaron en `0`: el montaje coincide con el
+convenio de los bitmaps. Los fallos observados fueron de cableado (dos columnas
+intercambiadas y una fila mal conectada), no de orientación.
+
+---
+
+## 11. LED D2 solo para diagnóstico
 
 **Decidido.** `PA6` se usa en la Fase 1 para validar la cadena de compilación y
 flasheo, y desaparece del sistema final.

@@ -182,6 +182,12 @@ los registros de 2 bits:
 Es el mismo `0x5555` de las columnas, desplazado 16 bits: los pines 8 a 15 ocupan
 los bits 16 a 31 de `MODER`.
 
+> [!important] Polaridad, verificada en la Fase 2
+> La matriz es de **ánodo común en las columnas**:
+> `PDx` (columna, ánodo) → LED → `PEy` (fila, cátodo).
+> Por tanto **las columnas son activas en alto y las filas activas en bajo**, y
+> la fila activa es el sumidero de todos los LED encendidos de esa fila.
+
 ### Teclado — filas F0–F3 en `PB6`–`PB9` (salida open-drain)
 
 | Registro | Máscara a limpiar | Valor a escribir |
@@ -221,10 +227,13 @@ Tres escrituras, **en este orden**:
 /* 1. Blanking: apagar todas las columnas antes de cambiar de fila. */
 GPIOD->BSRR = 0x00FF0000u;
 
-/* 2. Seleccionar la fila r: apagar las 8 y encender solo la r.
- *    Las filas viven en PE8..PE15, de ahi la mascara 0xFF00 en la mitad de
- *    reset (0xFF00 << 16 = 0xFF000000) y el desplazamiento (8 + r). */
-GPIOE->BSRR = 0xFF000000u | (1u << (8u + r));
+/* 2. Seleccionar la fila r.
+ *    Las filas son CATODOS: activas en BAJO. Hay que poner las siete inactivas
+ *    a 1 y la activa a 0, todo en la misma escritura.
+ *    OJO: la fila activa no puede aparecer tambien en la mitad de set, porque
+ *    si un pin lleva a 1 su bit BS y su bit BR a la vez, gana el set. */
+const uint32_t row_bit = (1u << (8u + r));
+GPIOE->BSRR = (0xFF00u & ~row_bit) | (row_bit << 16u);
 
 /* 3. Volcar el patron de esa fila en las columnas. */
 GPIOD->BSRR = ((uint32_t)(~patron & 0xFFu) << 16u) | patron;

@@ -30,18 +30,18 @@ tags:
 Son las nueve pruebas mínimas que pide el reto. Se marcan a medida que las fases
 las habilitan.
 
-| # | Prueba | Resultado esperado | Fase que la habilita | Estado |
-|---|---|---|---|---|
-| 1 | Encender el sistema | Aparece la imagen de espera | Fase 5 | ⬜ |
-| 2 | Presionar una tecla | Se detecta una única pulsación | Fase 4 | ⬜ |
-| 3 | Mantener una tecla presionada | No se generan múltiples pulsaciones | Fase 4 | ⬜ |
-| 4 | Liberar una tecla | El sistema vuelve a aceptar pulsaciones | Fase 4 | ⬜ |
-| 5 | Ingresar 4 dígitos | Se inicia la validación | Fase 5 | ⬜ |
-| 6 | Contraseña correcta | Aparece la imagen de acceso | Fase 5 | ⬜ |
-| 7 | Contraseña incorrecta | Aparece la imagen de error | Fase 5 | ⬜ |
-| 8 | Esperar 3 s | Desaparece la imagen de resultado | Fase 5 | ⬜ |
-| 9 | Nueva contraseña | El sistema permite un nuevo intento | Fase 5 | ⬜ |
-| 10 | Funcionamiento continuo | La matriz no parpadea de forma perceptible | Fase 2 | ⬜ |
+| #   | Prueba                        | Resultado esperado                         | Fase que la habilita | Estado |
+| --- | ----------------------------- | ------------------------------------------ | -------------------- | ------ |
+| 1   | Encender el sistema           | Aparece la imagen de espera                | Fase 5               | ⬜      |
+| 2   | Presionar una tecla           | Se detecta una única pulsación             | Fase 4               | ⬜      |
+| 3   | Mantener una tecla presionada | No se generan múltiples pulsaciones        | Fase 4               | ⬜      |
+| 4   | Liberar una tecla             | El sistema vuelve a aceptar pulsaciones    | Fase 4               | ⬜      |
+| 5   | Ingresar 4 dígitos            | Se inicia la validación                    | Fase 5               | ⬜      |
+| 6   | Contraseña correcta           | Aparece la imagen de acceso                | Fase 5               | ⬜      |
+| 7   | Contraseña incorrecta         | Aparece la imagen de error                 | Fase 5               | ⬜      |
+| 8   | Esperar 3 s                   | Desaparece la imagen de resultado          | Fase 5               | ⬜      |
+| 9   | Nueva contraseña              | El sistema permite un nuevo intento        | Fase 5               | ⬜      |
+| 10  | Funcionamiento continuo       | La matriz no parpadea de forma perceptible | Fase 2               | X      |
 
 Prueba adicional del reto opcional:
 
@@ -100,15 +100,24 @@ del `while(1)` ya es la definitiva.
 
 ---
 
-### Fase 2 — Driver de la matriz LED ⬜
+### Fase 2 — Driver de la matriz LED ✅
 
-_Pendiente._ Además de las pruebas de la fase, aquí se resuelven las dos
-incógnitas de hardware abiertas:
+**2026-09-09** · rama `fase-2-driver-matriz-led`
 
-- **Polaridad de la matriz**: qué rótulo (F o C) corresponde al ánodo, y la
-  correspondencia real entre los rótulos del pinout y los pines físicos 1–16.
-- **Limitación de corriente**: valor de resistencia por columna, o decisión de
-  usar transistores en las filas.
+| # | Prueba | Resultado |
+|---|---|---|
+| 2.1 | Multiplexado a 125 Hz | Sin parpadeo perceptible ✅ |
+| 2.2 | Blanking | Sin ghosting ✅ |
+| 2.3 | Orientación (`img_test_f`) | Correcta, los tres flags quedan en `0` ✅ |
+| 2.4 | Cableado (`img_test_border`, `img_test_all`) | Detectó dos columnas intercambiadas y una fila mal conectada; corregidas ✅ |
+| 2.5 | No bloqueo | Las imágenes rotan cada 2 s sin interrumpir el refresco ✅ |
+
+Incógnitas cerradas: **ánodo común en las columnas** y **sin resistencias**
+(justificación en `decisiones_diseno.md` §9).
+
+Aprendizaje: las imágenes de diagnóstico deben ser densas. La F tiene píxeles
+apagados por diseño y se confundieron con fallos; `img_test_all` localizó los
+pines mal conectados de un vistazo.
 
 ---
 ## Enlaces

@@ -50,6 +50,41 @@
 #define MATRIX_ROWS                 8u
 #define MATRIX_COLS                 8u
 
+/* --- Polaridad de la matriz ------------------------------------------------
+ *
+ * La matriz es de ANODO COMUN EN LAS COLUMNAS:
+ *
+ *      PDx (columna) ---|>|--- PEy (fila)
+ *           anodo                catodo
+ *
+ * Para encender el LED (fila r, columna c): la columna c a 1 y la fila r a 0.
+ *
+ * CONSECUENCIA ELECTRICA: la fila activa es el SUMIDERO de todos los LED
+ * encendidos de esa fila, hasta ocho a la vez. Sin resistencias de limitacion
+ * (decision documentada en _docs/decisiones_diseno.md), la corriente la limita
+ * la resistencia interna del propio driver del pin, y el brillo de cada LED
+ * depende de cuantos haya encendidos en su fila.
+ */
+#define MATRIX_ROW_ACTIVE_LOW       1
+#define MATRIX_COL_ACTIVE_HIGH      1
+
+/* --- Correccion de orientacion ---------------------------------------------
+ *
+ * Convenio de los bitmaps (ver images.h): imagen[0] es la fila SUPERIOR y,
+ * dentro de cada byte, el bit 7 es la columna IZQUIERDA. Es el convenio que
+ * hace que el arreglo escrito en binario se lea igual que se ve en la matriz.
+ *
+ * Estos tres interruptores corrigen el montaje sin tocar ni un solo bitmap si al
+ * cablear los 16 hilos la imagen sale espejada, girada o transpuesta. Entre los
+ * tres cubren las ocho orientaciones posibles de un montaje 8x8, asi que ningun
+ * resultado de la Fase 2 obliga a recablear ni a reescribir bitmaps.
+ *
+ * Se ajustan una vez, en este orden: primero TRANSPOSE, luego los dos REVERSE.
+ */
+#define MATRIX_TRANSPOSE            0   /**< 1 = intercambia los ejes (transpone)  */
+#define MATRIX_ROW_REVERSE          0   /**< 1 = invierte el orden de las filas    */
+#define MATRIX_COL_REVERSE          0   /**< 1 = invierte el orden de las columnas */
+
 /* ==========================================================================
  * Teclado matricial 4x4  -  multiplexacion IN-OUT
  * ==========================================================================
