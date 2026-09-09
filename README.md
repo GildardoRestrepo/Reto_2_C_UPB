@@ -90,7 +90,7 @@ máquina maestra) están en [`_docs/architecture.md`](_docs/architecture.md).
 - [x] **Fase 2** — Driver de la matriz LED 8x8 y MEF de multiplexado OUT-OUT. Se determina la polaridad real de la matriz.
 - [x] **Fase 3** — Driver del teclado 4x4 y MEF de barrido IN-OUT.
 - [x] **Fase 4** — MEF de antirrebote y contrato de eventos entre módulos.
-- [ ] **Fase 5** — MEF de sistema/contraseña y temporización no bloqueante de 3 s.
+- [x] **Fase 5** — MEF de sistema/contraseña y temporización no bloqueante de 3 s.
 - [ ] **Fase 6** — MEF maestra, integración final y limpieza de código.
 - [ ] **Fase 7** — Reto adicional: bloqueo temporal tras 3 intentos fallidos.
 - [ ] **Fase 8** — Documentación de entregables y registro del uso de IA.

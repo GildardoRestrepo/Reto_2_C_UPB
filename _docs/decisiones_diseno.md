@@ -289,7 +289,72 @@ sin haber sido confirmada.
 
 ---
 
-## 16. LED D2 solo para diagnóstico
+## 16. La contraseña vive en FLASH
+
+**Decidido.** `static const uint8_t k_stored_password[4] = { 8, 1, 9, 1 };`
+
+**Alternativa descartada:** un arreglo en RAM, modificable en ejecución.
+
+**Justificación.** Al ser `const`, el enlazador la coloca en `.rodata`, dentro de
+la FLASH. Verificado sobre el `.elf`: queda en `0x080011A4`. Ninguna ejecución
+puede alterarla: no hay puntero que la pise ni desbordamiento de pila que la
+corrompa. En RAM sería modificable en caliente, pero se perdería en cada reset y
+el enunciado no pide cambiarla.
+
+**Limitación asumida.** No hay cifrado, tal y como permite el enunciado:
+cualquiera con acceso al `.hex` puede leer la clave. Es una decisión consciente,
+no un descuido.
+
+---
+
+## 17. La comparación no sale al primer fallo
+
+**Decidido.** `password_matches()` recorre siempre las cuatro posiciones y
+acumula el resultado, en lugar de retornar en cuanto encuentra una diferencia.
+
+**Justificación.** Un `return` anticipado haría que el tiempo de ejecución
+dependiera de cuántos dígitos iniciales fueran correctos, que es la base de un
+ataque por temporización. Aquí nadie está midiendo microsegundos, pero es la
+forma correcta de escribirlo y no cuesta nada: cuatro iteraciones frente a una.
+
+---
+
+## 18. `ST_VALIDANDO` como estado de paso
+
+**Decidido.** Misma técnica que `KEY_PRESSED` en la MEF de antirrebote: se
+atraviesa dentro del mismo paso en que se completa el cuarto dígito.
+
+**Justificación.** Hace que **validar dos veces el mismo ingreso sea
+imposible por construcción**, no por convención. Es además el único punto del
+programa que compara la contraseña.
+
+---
+
+## 19. Reparto de las 16 teclas
+
+**Decidido.** Las diez numéricas ocupan una posición del buffer. `*` borra el
+ingreso y devuelve a ESPERA. `A`, `B`, `C`, `D` y `#` se ignoran por completo.
+
+**Justificación.** La contraseña es numérica, así que aceptar letras como
+entrada obligaría a comparar por índice de tecla en lugar de por dígito, y a
+dibujar cinco glifos más que no aportan nada. Ignorarlas no rompe un ingreso en
+curso, que es el comportamiento menos sorprendente para el usuario.
+
+---
+
+## 20. La MEF de la aplicación publica vistas, no dibujos
+
+**Decidido.** `system_fsm` publica un `SysDisplay_t` con un enumerado de vista.
+La traducción de vista a mapa de bits ocurre en `render()`, dentro de `main.c`.
+
+**Justificación.** `system_fsm` no sabe que existe una matriz de LED, y `main`
+no sabe que existe una contraseña. Cambiar el display por otro dispositivo no
+tocaría una sola línea de la lógica del producto, y cambiar el aspecto del
+sistema es tocar solo `render()` y los bitmaps.
+
+---
+
+## 21. LED D2 solo para diagnóstico
 
 **Decidido.** `PA6` se usa en la Fase 1 para validar la cadena de compilación y
 flasheo, y desaparece del sistema final.
@@ -297,6 +362,10 @@ flasheo, y desaparece del sistema final.
 **Justificación.** Separa el fallo de *toolchain* del fallo de *aplicación*. Si
 en una fase posterior algo no funciona, un parpadeo de D2 confirma en dos
 segundos que el binario cargó y que la base de tiempo corre.
+
+**Retirado en la Fase 5.** Cumplida su función, D2 sale del `main`: no forma
+parte del sistema que pide el enunciado, y la imagen de espera ya indica por sí
+sola que el multiplexado sigue corriendo.
 
 ---
 ## Enlaces
