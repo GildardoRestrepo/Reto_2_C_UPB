@@ -1,0 +1,16 @@
+# --- Artefactos de compilacion ---
+# El proyecto de CubeIDE vive fuera del repo, pero por si algo se genera aqui.
+*.o
+*.d
+*.su
+*.elf
+*.map
+*.list
+
+# --- Sistema ---
+Thumbs.db
+.DS_Store
+
+# --- Plantilla de documentacion (base local para los .md, no se versiona) ---
+plantilla_documentacion.md
+definition.md
