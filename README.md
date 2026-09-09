@@ -89,7 +89,7 @@ máquina maestra) están en [`_docs/architecture.md`](_docs/architecture.md).
 ## Etapas de desarrollo
 
 - [x] **Fase 0** — Infraestructura: estructura del repositorio, documentación base.
-- [ ] **Fase 1** — Base de tiempo: `SysTick` a 1 ms, capa de acceso a GPIO por registros y parpadeo del LED D2. Valida toolchain y flasheo.
+- [x] **Fase 1** — Base de tiempo: `SysTick` a 1 ms, capa de acceso a GPIO por registros y parpadeo del LED D2. Valida toolchain y flasheo.
 - [ ] **Fase 2** — Driver de la matriz LED 8x8 y MEF de multiplexado OUT-OUT. Se determina la polaridad real de la matriz.
 - [ ] **Fase 3** — Driver del teclado 4x4 y MEF de barrido IN-OUT.
 - [ ] **Fase 4** — MEF de antirrebote y contrato de eventos entre módulos.
