@@ -107,7 +107,7 @@ Presupuesto por tick de 1 ms:
 |---|---|---|
 | Multiplexado de la matriz | 1 fila por tick | Cuadro completo cada 8 ms, es decir **125 Hz**, sin parpadeo perceptible |
 | Barrido del teclado | 1 semifase por tick | Barrido completo cada 8 ms (4 filas por 2 fases) |
-| MEF de antirrebote | 1 paso por barrido completo | 3 muestras estables, es decir **24 ms** de antirrebote |
+| MEF de antirrebote | 1 paso por barrido completo | 4 muestras estables, es decir **24 ms** de antirrebote |
 | MEF de contraseña | 1 paso por tick | Reacciona en menos de 1 ms al evento de tecla |
 | Temporizador de resultado | comparación contra el contador de ms | 3 s exactos sin bloquear |
 
@@ -203,6 +203,11 @@ stateDiagram-v2
     end note
 ```
 
+La instantánea se publica **solo al terminar las cuatro filas**, nunca a mitad de
+barrido: así el consumidor lee siempre un estado coherente del teclado completo y
+no una mezcla de dos ciclos. El índice es `fila * 4 + columna`; qué carácter
+representa cada índice es semántica de aplicación y vive en `password`.
+
 ---
 
 ## 7. MEF de antirrebote
@@ -232,11 +237,11 @@ stateDiagram-v2
 
     KEY_IDLE --> KEY_DEBOUNCE_PRESS : lectura distinta de NINGUNA
     KEY_DEBOUNCE_PRESS --> KEY_IDLE : la lectura cambia, rebote descartado
-    KEY_DEBOUNCE_PRESS --> KEY_PRESSED : 3 muestras iguales, 24 ms
+    KEY_DEBOUNCE_PRESS --> KEY_PRESSED : 4 muestras iguales, 24 ms
     KEY_PRESSED --> KEY_HELD : evento ya emitido
     KEY_HELD --> KEY_DEBOUNCE_RELEASE : lectura NINGUNA
     KEY_DEBOUNCE_RELEASE --> KEY_HELD : reaparece la misma tecla, rebote
-    KEY_DEBOUNCE_RELEASE --> KEY_IDLE : 3 muestras sin tecla, emite KEY_EVT_RELEASED
+    KEY_DEBOUNCE_RELEASE --> KEY_IDLE : 4 muestras sin tecla, emite KEY_EVT_RELEASED
 ```
 
 > [!example] Comportamiento esperado

@@ -1,23 +1,20 @@
 /**
  * @file    main.c
- * @brief   Fase 2 - Driver de la matriz LED y MEF de multiplexado.
+ * @brief   Fase 4 - MEF de antirrebote y contrato de eventos.
  *
- * Rota tres imagenes de diagnostico cada 2 s mientras multiplexa la matriz a
- * 125 Hz, y mantiene el parpadeo del LED D2 como latido del sistema.
+ * El bucle ya no lee la tecla cruda: consume EVENTOS. La matriz muestra el
+ * bloque 2x2 de la tecla mantenida y vuelve a la imagen de reposo al soltarla,
+ * y toda esa logica se sostiene unicamente sobre los eventos que emite la MEF
+ * de antirrebote. main no consulta en ningun momento el estado interno del
+ * teclado.
  *
- * Que se valida aqui:
- *   1. Que el multiplexado OUT-OUT construye una imagen estable, sin parpadeo
- *      perceptible y sin ghosting.
- *   2. La ORIENTACION real del cableado. Las tres imagenes son asimetricas a
- *      proposito; segun como se vean, se ajustan MATRIX_ROW_REVERSE y
- *      MATRIX_COL_REVERSE en board.h y no se toca ningun bitmap.
- *   3. Que el sistema sigue siendo no bloqueante: el cambio de imagen cada 2 s
- *      se hace con un temporizador software mientras la matriz se refresca sin
- *      interrupcion.
+ * PRUEBA DEL REQUISITO: D2 conmuta UNA VEZ por cada pulsacion validada.
+ * Mantener una tecla pulsada cinco segundos cambia el LED una sola vez y ahi se
+ * queda; pulsar diez veces produce diez cambios. Es la demostracion visual de
+ * que cada pulsacion genera exactamente un evento.
  *
- * El LED D2 sigue parpadeando como latido: si la matriz no muestra nada pero
- * D2 parpadea, el fallo esta en el cableado o en el driver, no en el arranque
- * ni en la base de tiempo.
+ * D2 deja de ser el latido del sistema: esa funcion la cumple ya la imagen de
+ * esquinas de la matriz, que solo se ve si el multiplexado sigue corriendo.
  *
  * Reto 2 - Microcontroladores - Gildardo E. Restrepo - 2026-02
  */
@@ -26,73 +23,112 @@
 #include "board.h"
 #include "gpio.h"
 #include "images.h"
+#include "keypad.h"
+#include "keypad_fsm.h"
 #include "led_matrix.h"
 #include "timebase.h"
 
-/** Semiperiodo del latido. 500 ms encendido + 500 ms apagado = 1 Hz. */
-#define BLINK_HALF_PERIOD_MS        500u
-
-/** Tiempo que permanece visible cada imagen de diagnostico. */
-#define DIAG_IMAGE_PERIOD_MS        2000u
-
-/** Secuencia de diagnostico de la Fase 2, en orden de utilidad. */
-static const uint8_t *const k_diag_images[] = {
-    img_test_row0,      /* ¿estan cruzadas filas y columnas?      */
-    img_test_f,         /* ¿esta espejada o girada?               */
-    img_test_border,    /* ¿el marco cierra por los cuatro lados? */
-    img_test_all        /* ¿hay alguna fila o columna muerta?     */
-};
-
-#define DIAG_IMAGE_COUNT    (sizeof(k_diag_images) / sizeof(k_diag_images[0]))
+/** Lado en LED del bloque que representa una tecla (8 / 4 = 2). */
+#define KEY_BLOCK_SIZE              (MATRIX_ROWS / KEYPAD_ROWS)
 
 static void debug_led_init(void);
 static void debug_led_write(uint8_t on);
+static void build_key_frame(uint8_t key, uint8_t *frame);
 
 int main(void)
 {
-    SwTimer_t blink_timer;
-    SwTimer_t diag_timer;
-    uint8_t   led_on      = 0u;
-    uint8_t   image_index = 0u;
+    uint8_t frame[MATRIX_ROWS];
+    uint8_t press_led = 0u;
+    uint8_t held_key  = KEYPAD_NO_KEY;
+    uint8_t redraw    = 1u;
 
     /* --- Inicializacion --------------------------------------------------- */
     debug_led_init();
     led_matrix_init();
+    keypad_init();
+    keypad_fsm_init();
     timebase_init();
 
-    debug_led_write(led_on);
-    led_matrix_show(k_diag_images[image_index]);
-
-    sw_timer_start(&blink_timer, BLINK_HALF_PERIOD_MS);
-    sw_timer_start(&diag_timer, DIAG_IMAGE_PERIOD_MS);
+    debug_led_write(press_led);
 
     /* --- Bucle principal cooperativo -------------------------------------- */
     while (1) {
 
         if (timebase_tick_ready() != 0u) {
 
-            /* Latido del sistema. */
-            if (sw_timer_expired(&blink_timer) != 0u) {
-                led_on = (led_on == 0u) ? 1u : 0u;
-                debug_led_write(led_on);
-                sw_timer_start(&blink_timer, BLINK_HALF_PERIOD_MS);
+            /* 1. MEF de barrido: explora el teclado. */
+            keypad_scan_step();
+
+            /* 2. MEF de antirrebote: convierte el flujo crudo en eventos. */
+            keypad_fsm_step();
+
+            /* 3. Consumir el evento. Este es el unico canal por el que main se
+             *    entera de lo que pasa en el teclado: no hay ninguna consulta
+             *    al estado interno de las maquinas de abajo. */
+            const KeyEvent_t event = keypad_fsm_get_event();
+
+            if (event.type == KEY_EVT_PRESSED) {
+                /* La prueba del requisito: una conmutacion por pulsacion. */
+                press_led = (press_led == 0u) ? 1u : 0u;
+                debug_led_write(press_led);
+
+                held_key = event.key;
+                redraw   = 1u;
+
+            } else if (event.type == KEY_EVT_RELEASED) {
+                held_key = KEYPAD_NO_KEY;
+                redraw   = 1u;
+
+            } else {
+                /* KEY_EVT_NONE: nada que hacer en este tick. */
             }
 
-            /* Rotacion de las imagenes de diagnostico. En la Fase 5 este bloque
-             * lo sustituye la MEF de contrasena, que decidira que mostrar. */
-            if (sw_timer_expired(&diag_timer) != 0u) {
-                image_index++;
-                if (image_index >= DIAG_IMAGE_COUNT) {
-                    image_index = 0u;
+            /* 4. Repintar solo cuando algo cambio. */
+            if (redraw != 0u) {
+                if (held_key == KEYPAD_NO_KEY) {
+                    led_matrix_show(img_idle_corners);
+                } else {
+                    build_key_frame(held_key, frame);
+                    led_matrix_show(frame);
                 }
-                led_matrix_show(k_diag_images[image_index]);
-                sw_timer_start(&diag_timer, DIAG_IMAGE_PERIOD_MS);
+                redraw = 0u;
             }
 
-            /* El multiplexado va al final del tick, como en el orden de
-             * despacho documentado en _docs/architecture.md. */
+            /* 5. Multiplexado, al final del tick. */
             led_matrix_mux_step();
         }
+    }
+}
+
+/**
+ * @brief Construye la imagen del bloque 2x2 que representa una tecla.
+ *
+ * La tecla de indice k ocupa la fila k/4 y la columna k%4 del teclado, y se
+ * dibuja como un cuadrado de 2x2 LED en esa misma posicion de la rejilla.
+ *
+ * El desplazamiento (6 - 2*columna) sale del convenio de los bitmaps: el bit 7
+ * es la columna izquierda, asi que las dos columnas del bloque de la columna 0
+ * son los bits 7 y 6, o sea 0b11 desplazado 6 posiciones.
+ *
+ * @param key   Indice de tecla 0..15, o KEYPAD_NO_KEY para dejarla en blanco.
+ * @param frame Destino, MATRIX_ROWS bytes.
+ */
+static void build_key_frame(uint8_t key, uint8_t *frame)
+{
+    for (uint8_t r = 0u; r < MATRIX_ROWS; r++) {
+        frame[r] = 0u;
+    }
+
+    if (key == KEYPAD_NO_KEY) {
+        return;
+    }
+
+    const uint8_t key_row = (uint8_t)(key / KEYPAD_COLS);
+    const uint8_t key_col = (uint8_t)(key % KEYPAD_COLS);
+    const uint8_t pattern = (uint8_t)(0x03u << (6u - (2u * key_col)));
+
+    for (uint8_t i = 0u; i < KEY_BLOCK_SIZE; i++) {
+        frame[(KEY_BLOCK_SIZE * key_row) + i] = pattern;
     }
 }
 

@@ -110,6 +110,14 @@
 #define KEYPAD_ROWS                 4u
 #define KEYPAD_COLS                 4u
 
+/* Polaridad, por simetria con la de la matriz.
+ *
+ * Fila activa = 0 (open-drain tirando a masa); fila inactiva = 1 (alta
+ * impedancia). Columna leida a 0 = tecla pulsada, porque el pull-up interno la
+ * mantiene a 1 mientras no haya contacto. */
+#define KEYPAD_ROW_ACTIVE_LOW       1
+#define KEYPAD_COL_ACTIVE_LOW       1
+
 /* ==========================================================================
  * LED de diagnostico de la placa
  * ==========================================================================

@@ -214,7 +214,82 @@ intercambiadas y una fila mal conectada), no de orientación.
 
 ---
 
-## 11. LED D2 solo para diagnóstico
+## 11. El driver del teclado no sabe qué significa cada tecla
+
+**Decidido.** `keypad` publica un índice de 0 a 15 (`fila * 4 + columna`) y
+nada más. La traducción a carácter (`1`, `A`, `*`…) vive en la capa de
+aplicación, en la Fase 5.
+
+**Justificación.** Mantiene el driver en el nivel de hardware puro. Si mañana se
+cambia el teclado por uno con otra serigrafía, se toca una tabla de la
+aplicación y ni una línea del driver. Tiene además una ventaja práctica: si al
+cablear resultan cruzadas las filas y las columnas, el efecto es solo que los
+índices salen transpuestos, y se corrige en esa misma tabla.
+
+**Corolario.** El driver tampoco filtra rebotes. Publica lo que hay en el
+teclado *ahora*; interpretar si eso es una pulsación válida es trabajo de la MEF
+de antirrebote.
+
+---
+
+## 12. La instantánea del teclado se publica solo al final del barrido
+
+**Decidido.** `keypad_get_raw_key()` se actualiza al terminar las cuatro filas,
+cada 8 ms, y no fila a fila.
+
+**Justificación.** Publicar a mitad de barrido dejaría ver un estado que mezcla
+dos momentos distintos: filas ya exploradas del ciclo nuevo junto a filas del
+anterior. El consumidor siempre lee una foto coherente del teclado completo.
+
+---
+
+## 13. El antirrebote avanza al ritmo del barrido, no del tick
+
+**Decidido.** `keypad_fsm_step()` se llama en cada tick pero solo progresa
+cuando `keypad_snapshot_ready()` confirma que hay una instantánea nueva.
+
+**Alternativa descartada:** contar milisegundos con un `SwTimer` dentro de la
+propia MEF de antirrebote.
+
+**Justificación.** El driver publica una foto cada 8 ms. Si la máquina avanzara
+en cada tick de 1 ms leería ocho veces seguidas exactamente el mismo valor, y
+las cuatro muestras estables serían 4 ms en lugar de 24: no filtraría nada.
+Consumiendo la bandera del driver, **cada muestra es una lectura genuinamente
+nueva** y el conteo equivale directamente a tiempo, sin introducir un segundo
+reloj para medir lo mismo.
+
+---
+
+## 14. `KEY_PRESSED` como estado de paso
+
+**Decidido.** El estado que emite `KEY_EVT_PRESSED` se atraviesa dentro del
+mismo paso en que se alcanza y nunca sobrevive al siguiente.
+
+**Justificación.** Es la forma de hacer que *"un evento por pulsación"* sea una
+propiedad **estructural** y no una convención. `KEY_PRESSED` es el único punto
+del programa que emite ese evento, y no existe ningún camino en la máquina que
+vuelva a pasar por él sin haber pasado antes por `KEY_IDLE`. Aunque la capa de
+aplicación se olvidara de filtrar, seguiría siendo imposible recibir el evento
+dos veces.
+
+Es también la respuesta corta en la sustentación a *"¿cómo garantizas que una
+tecla mantenida no genera cientos de eventos?"*.
+
+---
+
+## 15. Una segunda tecla se trata como liberación
+
+**Decidido.** Estando en `KEY_HELD`, cualquier lectura distinta de la tecla
+mantenida arranca el antirrebote de suelta, incluida la aparición de otra tecla.
+
+**Justificación.** Obliga a la nueva tecla a pasar por `KEY_IDLE` y por su
+propio antirrebote antes de considerarse válida. Es más predecible que intentar
+resolver la multitecla, que el reto no pide, y evita que una pulsación se cuele
+sin haber sido confirmada.
+
+---
+
+## 16. LED D2 solo para diagnóstico
 
 **Decidido.** `PA6` se usa en la Fase 1 para validar la cadena de compilación y
 flasheo, y desaparece del sistema final.
