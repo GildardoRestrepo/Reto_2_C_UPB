@@ -324,13 +324,13 @@ la indicación de ingreso en curso, tal como pide el enunciado.
 
 ## 10. Tabla de conexiones
 
-| Dispositivo | Señales | GPIO | Modo | Notas |
-|---|---|---|---|---|
-| Matriz LED | C1–C8 | `PD0`–`PD7` | Salida push-pull | 8 pines contiguos, escritura por `BSRR` |
-| Matriz LED | F1–F8 | `PC0`–`PC7` | Salida push-pull | 8 pines contiguos, escritura por `BSRR` |
-| Teclado | F0–F3 | `PB6`–`PB9` | Salida open-drain | Activa en bajo |
-| Teclado | C0–C3 | `PA1`–`PA4` | Entrada con pull-up | Lectura activa en bajo |
-| LED D2 | — | `PA6` | Salida push-pull | Activo en bajo, solo diagnóstico |
+| Dispositivo | Señales | GPIO        | Modo                | Notas                                   |
+| ----------- | ------- | ----------- | ------------------- | --------------------------------------- |
+| Matriz LED  | C1–C8   | `PD0`–`PD7` | Salida push-pull    | 8 pines contiguos, escritura por `BSRR` |
+| Matriz LED  | F1–F8   | `PE8`–`PE15` | Salida push-pull   | Byte alto del puerto, contiguos en el conector |
+| Teclado     | F0–F3   | `PB6`–`PB9` | Salida open-drain   | Activa en bajo                          |
+| Teclado     | C0–C3   | `PA1`–`PA4` | Entrada con pull-up | Lectura activa en bajo                  |
+| LED D2      | —       | `PA6`       | Salida push-pull    | Activo en bajo, solo diagnóstico        |
 
 
 ---

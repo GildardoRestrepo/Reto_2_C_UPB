@@ -16,12 +16,11 @@ La arquitectura del proyecto se consolida a partir de tres coneptos clave trabaj
 ---
 
 ## Estado de proyecto
-> [!success] En proceso
+>  En proceso
 
 ---
 
-## Entornos y Hardware objetivo
-
+## Entornos
 - STM32Cube IDE 2.2.0.
 - STM32CubeProgrammer.
 - STM32F407VET6.
@@ -31,11 +30,9 @@ La arquitectura del proyecto se consolida a partir de tres coneptos clave trabaj
 ---
 
 ## Arquitectura del proyecto
-
 Sistema **cooperativo y no bloqueante**: `SysTick` genera una base de
 tiempo de **1 ms** y el `while(1)` despacha en cada tick, y en orden fijo, todas
 las máquinas de estados. Ninguna función espera y  ningún `delay` bloquea.
-
 - **Teclado**: multiplexación **IN-OUT**, una fila por tick → barrido completo en 8 ms.
 - **Matriz LED**: multiplexación **OUT-OUT**, una fila por tick → refresco a **125 Hz**.
 - **Comunicación entre MEF**: solo por **eventos** (`KeyEvent_t`) y por consultas
@@ -89,7 +86,7 @@ máquina maestra) están en [`_docs/architecture.md`](_docs/architecture.md).
 ## Etapas de desarrollo
 
 - [x] **Fase 0** — Infraestructura: estructura del repositorio, documentación base.
-- [ ] **Fase 1** — Base de tiempo: `SysTick` a 1 ms, capa de acceso a GPIO por registros y parpadeo del LED D2. Valida toolchain y flasheo.
+- [x] **Fase 1** — Base de tiempo: `SysTick` a 1 ms, capa de acceso a GPIO por registros y parpadeo del LED D2. Valida toolchain y flasheo.
 - [ ] **Fase 2** — Driver de la matriz LED 8x8 y MEF de multiplexado OUT-OUT. Se determina la polaridad real de la matriz.
 - [ ] **Fase 3** — Driver del teclado 4x4 y MEF de barrido IN-OUT.
 - [ ] **Fase 4** — MEF de antirrebote y contrato de eventos entre módulos.
@@ -137,30 +134,13 @@ Módulos previstos en `src/` e `inc/`:
 Abrir CubeIDE con un workspace **fuera de este repositorio**. Después
 `File > New > STM32 Project` → seleccionar **STM32F407VETx** → *Targeted Language*
 **C**, *Targeted Binary Type* **Executable**, *Targeted Project Type* **Empty**.
-
-El tipo **Empty** es obligatorio: genera únicamente CMSIS, el `startup` y el
-linker script, **sin HAL ni LL**, que es lo que exige el reto.
-
-> Si el proyecto no incluye `Core/Src/system_stm32f4xx.c`, el enlazador fallará
-> por `SystemInit` no definido. Se resuelve copiando ese archivo del paquete
-> CMSIS de ST.
-
 ### 2. Vincular el código del repositorio
 
 Añadir `src/` e `inc/` como **carpetas vinculadas**
-(`New > Folder > Advanced > Link to alternate location`) apuntando a este
-repositorio, e incluir `inc/` en
-`Properties > C/C++ Build > Settings > MCU GCC Compiler > Include paths`.
-
-Así el código se edita y versiona en el repositorio, y el IDE solo compila.
-
 ### 3. Habilitar la salida `.hex`
-
 `Properties > C/C++ Build > Settings > MCU/MPU Post build outputs` → marcar
-**Convert to Intel Hex file**. Por defecto CubeIDE solo genera `.elf`.
-
+**Convert to Intel Hex file**. Por defecto CubeIDE solo genera.
 ### 4. Compilar y flashear
-
 1. **Build** en CubeIDE → se genera el `.hex` en `Debug/`.
 2. **STM32CubeProgrammer** con el ST-Link: cargar el `.hex` en la dirección base
    `0x08000000` y programar.

@@ -75,12 +75,15 @@ escritura simplemente se pierde. Es el error número uno al empezar en bare-meta
 | 3 | `GPIODEN` | Habilita el reloj de `GPIOD` |
 | 4 | `GPIOEEN` | Habilita el reloj de `GPIOE` |
 
-**Valor del proyecto:** se usan los puertos A, B, C y D.
+**Valor del proyecto:** se usan los puertos A, B, D y E. El puerto C no se usa.
 
 ```c
-RCC->AHB1ENR |= 0x0000000Fu;   /* GPIOA | GPIOB | GPIOC | GPIOD */
+RCC->AHB1ENR |= 0x0000001Bu;   /* GPIOA | GPIOB | GPIOD | GPIOE */
 (void)RCC->AHB1ENR;            /* lectura de vuelta: asegura que ya esta activo */
 ```
+
+`GPIOA` solo hace falta por las columnas del teclado (`PA1`–`PA4`) y, en la
+Fase 1, por el LED de diagnóstico `PA6`.
 
 La lectura de vuelta existe porque la habilitación tarda unos ciclos en
 propagarse por el bus. Sin ella, la instrucción siguiente puede escribir un
@@ -165,9 +168,19 @@ port->BSRR = ((mask & ~value) << 16u) | (mask & value);
 
 `0x5555` es `01` repetido ocho veces: los ocho pines en modo salida.
 
-### Matriz LED — filas F1–F8 en `PC0`–`PC7` (salida push-pull)
+### Matriz LED — filas F1–F8 en `PE8`–`PE15` (salida push-pull)
 
-Idéntico al anterior sobre `GPIOC`: `MODER = 0x00005555`.
+Al estar en el **byte alto** del puerto, los campos caen en la mitad superior de
+los registros de 2 bits:
+
+| Registro | Máscara a limpiar | Valor a escribir |
+|---|---|---|
+| `GPIOE->MODER` | `0xFFFF0000` | `0x55550000` |
+| `GPIOE->OTYPER` | `0x0000FF00` | `0x00000000` |
+| `GPIOE->PUPDR` | `0xFFFF0000` | `0x00000000` |
+
+Es el mismo `0x5555` de las columnas, desplazado 16 bits: los pines 8 a 15 ocupan
+los bits 16 a 31 de `MODER`.
 
 ### Teclado — filas F0–F3 en `PB6`–`PB9` (salida open-drain)
 
@@ -208,8 +221,10 @@ Tres escrituras, **en este orden**:
 /* 1. Blanking: apagar todas las columnas antes de cambiar de fila. */
 GPIOD->BSRR = 0x00FF0000u;
 
-/* 2. Seleccionar la fila r: apagar las 8 y encender solo la r. */
-GPIOC->BSRR = 0x00FF0000u | (1u << r);
+/* 2. Seleccionar la fila r: apagar las 8 y encender solo la r.
+ *    Las filas viven en PE8..PE15, de ahi la mascara 0xFF00 en la mitad de
+ *    reset (0xFF00 << 16 = 0xFF000000) y el desplazamiento (8 + r). */
+GPIOE->BSRR = 0xFF000000u | (1u << (8u + r));
 
 /* 3. Volcar el patron de esa fila en las columnas. */
 GPIOD->BSRR = ((uint32_t)(~patron & 0xFFu) << 16u) | patron;

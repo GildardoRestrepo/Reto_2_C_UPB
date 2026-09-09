@@ -1,0 +1,182 @@
+---
+title: Decisiones de diseño
+created: 2026-09-09
+time: 08:53am
+creator: Gilbert
+last update: 2026-09-09
+update by: Gilbert
+type: referencia
+status: activo
+fase: "1"
+area: arquitectura de firmware
+editor: Gilbert
+order: 4
+tags:
+  - tipo/referencia
+  - tipo/decisiones
+---
+
+# Decisiones de diseño
+
+> [!success] Resumen
+> Registro de **por qué** el firmware es como es. Cada entrada dice qué se
+> decidió, qué alternativas había y qué se gana con la elegida. Es el material
+> de respuesta para la sustentación.
+
+---
+
+## 1. Reloj del sistema: HSI a 16 MHz, sin PLL
+
+**Decidido.** Se trabaja con el oscilador interno a 16 MHz, que es el reloj
+activo por defecto tras un reset.
+
+**Alternativa descartada:** configurar el PLL para llegar a 168 MHz.
+
+**Justificación.** Activar el PLL obliga a tocar `RCC->PLLCFGR`, `RCC->CFGR` y,
+sobre todo, `FLASH->ACR` para ajustar la latencia de la memoria. Configurar mal
+esa latencia es una de las formas más habituales de dejar la placa colgada sin
+mensaje de error. Para conmutar filas cada milisegundo, 16 MHz sobran: el
+multiplexado consume unas decenas de instrucciones por tick sobre un presupuesto
+de 16 000 ciclos.
+
+**Efecto colateral favorable.** El proyecto no incluye `system_stm32f4xx.c`, así
+que `SystemInit` no llega a ejecutarse (el enlazador convierte la llamada en un
+`nop`). Como `SystemInit` tampoco toca el PLL, el resultado es coherente: el
+reloj se queda donde lo asume el diseño.
+
+---
+
+## 2. Base de tiempo única: SysTick a 1 ms
+
+**Decidido.** Un solo temporizador para todo el sistema, a 1 ms.
+
+**Alternativa descartada:** un `TIM` dedicado para el refresco de la matriz.
+
+**Justificación.** Con 1 ms se cubren a la vez las dos exigencias temporales del
+reto sin necesidad de un segundo periférico:
+
+| Tarea | Cadencia | Resultado |
+|---|---|---|
+| Matriz | 1 fila por tick | 125 Hz de refresco, sin parpadeo perceptible |
+| Teclado | 1 semifase por tick | Barrido completo cada 8 ms |
+
+Un `TIM` daría un refresco más estable frente al jitter del bucle, a cambio de
+configurar más registros y de alejarse del *"el `while(1)` ejecuta las máquinas
+de estados"* que describe el enunciado.
+
+---
+
+## 3. Detección de tick por contador, no por bandera
+
+**Decidido.** `timebase_tick_ready()` compara el contador de milisegundos contra
+el último valor atendido, e incrementa de uno en uno.
+
+**Alternativa descartada:** una bandera booleana que la interrupción pone a 1 y
+el bucle limpia.
+
+**Justificación.** La bandera tiene dos defectos. Primero, una **condición de
+carrera**: si `SysTick` interrumpe justo entre leer la bandera y limpiarla, ese
+tick se pierde. Segundo, **no puede representar más de un tick acumulado**: si el
+bucle llega tarde, los ticks atrasados desaparecen. Comparando contra el contador
+e incrementando de uno en uno, el sistema se pone al día en las vueltas
+siguientes y no pierde ninguno.
+
+---
+
+## 4. Escritura de pines siempre por `BSRR`
+
+**Decidido.** Toda salida se escribe con `BSRR`, nunca con `ODR |= ...`.
+
+**Justificación.** Tres razones, en orden de importancia para este proyecto:
+
+1. Permite **subir unos pines y bajar otros en la misma instrucción**, que es lo
+   que necesita el multiplexado para no generar estados intermedios visibles.
+2. Es **atómico**: no hay ciclo leer-modificar-escribir que una interrupción
+   pueda partir por la mitad.
+3. **No toca los demás pines** del puerto, aunque no se conozca su estado.
+
+---
+
+## 5. Filas del teclado en open-drain
+
+**Decidido.** Filas como salida open-drain, columnas como entrada con pull-up
+interno. Lógica activa en bajo.
+
+**Alternativa descartada:** filas push-pull.
+
+**Justificación.** Con open-drain, escribir `1` no sube el pin: lo deja en alta
+impedancia. Si el usuario pulsa dos teclas a la vez, con push-pull podría quedar
+conectada una salida en alto contra otra en bajo, con la corriente limitada solo
+por la resistencia de los propios drivers. Con open-drain esa situación no puede
+darse. Cuesta lo mismo de programar: un bit en `OTYPER`.
+
+---
+
+## 6. Mapa de pines: cuatro buses contiguos
+
+**Decidido.**
+
+| Bus | Pines |
+|---|---|
+| Matriz columnas C1–C8 | `PD0`–`PD7` |
+| Matriz filas F1–F8 | `PE8`–`PE15` |
+| Teclado filas F0–F3 | `PB6`–`PB9` |
+| Teclado columnas C0–C3 | `PA1`–`PA4` |
+
+**Justificación.** Cada bus es un grupo contiguo dentro de su puerto, de modo que
+se escribe con una sola operación sobre `BSRR` y su máscara es un byte o un
+nibble desplazado. `PD0`–`PD7` es el byte bajo del puerto D y `PE8`–`PE15` el
+byte alto del E.
+
+**Revisión de la Fase 1.** La propuesta inicial situaba las filas de la matriz en
+`PC0`–`PC7`. Al revisar el orden físico de los conectores 2x24 se vio que `PC0`
+a `PC3` están seguidos pero después el header salta a `VREF-`, y que `PC4`–`PC8`
+quedan repartidos por otras zonas. `PE8`–`PE15` sí salen como cuatro parejas
+seguidas. **Lección: la contigüidad en la numeración del puerto no implica
+contigüidad en el conector.**
+
+Se descartó `PA0`–`PA7` por tres motivos: tampoco son contiguos en el header,
+`PA6` y `PA7` llevan los LEDs D2 y D3 de la placa, y `PA0` es el botón WK_UP.
+
+`PA1`–`PA4` se mantiene para las columnas del teclado pese a no ser contiguo en
+el conector, por decisión explícita. Moverlo a `PC0`–`PC3` sería cambiar dos
+`#define` en `board.h`.
+
+---
+
+## 7. Solo `stdint.h`
+
+**Decidido.** Los únicos `#include` del proyecto son `<stdint.h>` y
+`"stm32f4xx.h"`.
+
+**Justificación.** Es la restricción de la asignatura, y encaja con el reto: sin
+`string.h` la comparación de la contraseña se escribe a mano, sin `stdbool.h` los
+booleanos son `uint8_t`, y sin `stdlib.h` no hay asignación dinámica. El
+resultado es un binario cuyo contenido se entiende línea a línea.
+
+---
+
+## 8. Cada módulo configura sus propios pines
+
+**Decidido.** No existe una función `board_init()` que configure todo. Cada
+driver tiene su `_init()` y configura los pines que usa.
+
+**Justificación.** Mantiene la responsabilidad donde está el conocimiento: quien
+sabe que las filas del teclado deben ser open-drain es `keypad.c`, no un
+inicializador central. Además permite probar los drivers de forma aislada, que es
+justo lo que hacen las fases 2 y 3.
+
+---
+
+## 9. LED D2 solo para diagnóstico
+
+**Decidido.** `PA6` se usa en la Fase 1 para validar la cadena de compilación y
+flasheo, y desaparece del sistema final.
+
+**Justificación.** Separa el fallo de *toolchain* del fallo de *aplicación*. Si
+en una fase posterior algo no funciona, un parpadeo de D2 confirma en dos
+segundos que el binario cargó y que la base de tiempo corre.
+
+---
+## Enlaces
+[[proyectos|Proyectos Electrónica]]
