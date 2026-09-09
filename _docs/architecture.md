@@ -250,6 +250,13 @@ stateDiagram-v2
 Filas y columnas son salidas push-pull. El estado de la máquina **es** la fila
 activa: un anillo de ocho estados que avanza un paso por tick.
 
+La matriz es de **ánodo común en las columnas**, así que las columnas son
+activas en alto y las filas activas en bajo. Entre el bitmap y los pines hay
+tres correcciones de orientación (`MATRIX_TRANSPOSE`, `MATRIX_ROW_REVERSE`,
+`MATRIX_COL_REVERSE`) que se aplican en `led_matrix_show()`, no en el
+multiplexado: `show()` se ejecuta al cambiar de imagen y `mux_step()` mil veces
+por segundo.
+
 ```mermaid
 stateDiagram-v2
     direction LR
@@ -326,8 +333,8 @@ la indicación de ingreso en curso, tal como pide el enunciado.
 
 | Dispositivo | Señales | GPIO        | Modo                | Notas                                   |
 | ----------- | ------- | ----------- | ------------------- | --------------------------------------- |
-| Matriz LED  | C1–C8   | `PD0`–`PD7` | Salida push-pull    | 8 pines contiguos, escritura por `BSRR` |
-| Matriz LED  | F1–F8   | `PE8`–`PE15` | Salida push-pull   | Byte alto del puerto, contiguos en el conector |
+| Matriz LED  | C1–C8   | `PD0`–`PD7` | Salida push-pull    | Ánodos, **activas en alto**. Byte bajo del puerto |
+| Matriz LED  | F1–F8   | `PE8`–`PE15` | Salida push-pull   | Cátodos, **activas en bajo**. Byte alto del puerto |
 | Teclado     | F0–F3   | `PB6`–`PB9` | Salida open-drain   | Activa en bajo                          |
 | Teclado     | C0–C3   | `PA1`–`PA4` | Entrada con pull-up | Lectura activa en bajo                  |
 | LED D2      | —       | `PA6`       | Salida push-pull    | Activo en bajo, solo diagnóstico        |
