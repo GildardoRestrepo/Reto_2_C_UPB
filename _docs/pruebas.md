@@ -32,15 +32,15 @@ las habilitan.
 
 | #   | Prueba                        | Resultado esperado                         | Fase que la habilita | Estado |
 | --- | ----------------------------- | ------------------------------------------ | -------------------- | ------ |
-| 1   | Encender el sistema           | Aparece la imagen de espera                | Fase 5               | ⬜      |
+| 1   | Encender el sistema           | Aparece la imagen de espera                | Fase 5               | ✅      |
 | 2   | Presionar una tecla           | Se detecta una única pulsación             | Fase 4               | ✅      |
 | 3   | Mantener una tecla presionada | No se generan múltiples pulsaciones        | Fase 4               | ✅      |
 | 4   | Liberar una tecla             | El sistema vuelve a aceptar pulsaciones    | Fase 4               | ✅      |
-| 5   | Ingresar 4 dígitos            | Se inicia la validación                    | Fase 5               | ⬜      |
-| 6   | Contraseña correcta           | Aparece la imagen de acceso                | Fase 5               | ⬜      |
-| 7   | Contraseña incorrecta         | Aparece la imagen de error                 | Fase 5               | ⬜      |
-| 8   | Esperar 3 s                   | Desaparece la imagen de resultado          | Fase 5               | ⬜      |
-| 9   | Nueva contraseña              | El sistema permite un nuevo intento        | Fase 5               | ⬜      |
+| 5   | Ingresar 4 dígitos            | Se inicia la validación                    | Fase 5               | ✅      |
+| 6   | Contraseña correcta           | Aparece la imagen de acceso                | Fase 5               | ✅      |
+| 7   | Contraseña incorrecta         | Aparece la imagen de error                 | Fase 5               | ✅      |
+| 8   | Esperar 3 s                   | Desaparece la imagen de resultado          | Fase 5               | ✅      |
+| 9   | Nueva contraseña              | El sistema permite un nuevo intento        | Fase 5               | ✅      |
 | 10  | Funcionamiento continuo       | La matriz no parpadea de forma perceptible | Fase 2               | ✅      |
 
 Prueba adicional del reto opcional:
@@ -152,6 +152,27 @@ primera y diez pulsaciones limpias. Los cinco casos dan el número exacto de
 eventos esperado.
 
 Umbral: 4 muestras separadas 8 ms = **24 ms**. Latencia de respuesta hasta 32 ms.
+
+### Fase 5 — MEF de sistema y contraseña ✅
+
+**2026-09-09** · rama `fase-5-contrasena`
+
+| # | Prueba | Resultado |
+|---|---|---|
+| 5.1 | Contraseña correcta `8191` | Imagen de acceso ✅ |
+| 5.2 | Contraseña incorrecta | Imagen de error ✅ |
+| 5.3 | Temporización de 3 s | Vuelve solo a la imagen de espera ✅ |
+| 5.4 | Nuevo intento | El sistema acepta otra contraseña ✅ |
+| 5.5 | `*` borra el ingreso | Vuelve a espera con el buffer vacío ✅ |
+| 5.6 | `A`–`D` y `#` | Se ignoran, la barra no avanza ✅ |
+| 5.7 | Legibilidad de los dígitos | Los diez se distinguen en la matriz ✅ |
+
+Verificación previa por simulación de `system_fsm` + `password`: siete escenarios,
+incluida la temporización exacta (a los 2999 ms sigue el resultado, a los 3000 ms
+vuelve a espera) y que las pulsaciones se ignoran durante esos 3 s.
+
+Verificación de ubicación en memoria sobre el `.elf`: `k_stored_password` y
+`k_key_to_digit` quedan en `.rodata`, en `0x0800…`, es decir **en FLASH**.
 
 ---
 

@@ -68,4 +68,19 @@ extern const uint8_t img_test_all[8];
  */
 extern const uint8_t img_idle_corners[8];
 
+/**
+ * @brief Digitos 0 a 9, tipografia de 5x7 centrada en la matriz.
+ *
+ * `img_digit[d]` es el mapa del digito `d`. La tipografia ocupa las columnas 1
+ * a 5 y las filas 0 a 6, dejando la ultima fila libre: con 8x8 LED, apurar el
+ * borde hace que los trazos se toquen y los digitos dejen de distinguirse.
+ */
+extern const uint8_t img_digit[10][8];
+
+/** @brief Visto: ACCESO PERMITIDO. */
+extern const uint8_t img_check[8];
+
+/** @brief Equis: ACCESO DENEGADO. */
+extern const uint8_t img_cross[8];
+
 #endif /* IMAGES_H */
