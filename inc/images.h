@@ -58,4 +58,14 @@ extern const uint8_t img_test_border[8];
  */
 extern const uint8_t img_test_all[8];
 
+/**
+ * @brief Imagen de reposo: las cuatro esquinas encendidas.
+ *
+ * Se muestra cuando no hay ninguna tecla pulsada. No se usa la matriz apagada
+ * a proposito: "todo apagado" y "el sistema esta colgado" se verian igual,
+ * mientras que las cuatro esquinas confirman de un vistazo que el multiplexado
+ * sigue corriendo.
+ */
+extern const uint8_t img_idle_corners[8];
+
 #endif /* IMAGES_H */

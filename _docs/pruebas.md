@@ -33,15 +33,15 @@ las habilitan.
 | #   | Prueba                        | Resultado esperado                         | Fase que la habilita | Estado |
 | --- | ----------------------------- | ------------------------------------------ | -------------------- | ------ |
 | 1   | Encender el sistema           | Aparece la imagen de espera                | Fase 5               | ⬜      |
-| 2   | Presionar una tecla           | Se detecta una única pulsación             | Fase 4               | ⬜      |
-| 3   | Mantener una tecla presionada | No se generan múltiples pulsaciones        | Fase 4               | ⬜      |
-| 4   | Liberar una tecla             | El sistema vuelve a aceptar pulsaciones    | Fase 4               | ⬜      |
+| 2   | Presionar una tecla           | Se detecta una única pulsación             | Fase 4               | ✅      |
+| 3   | Mantener una tecla presionada | No se generan múltiples pulsaciones        | Fase 4               | ✅      |
+| 4   | Liberar una tecla             | El sistema vuelve a aceptar pulsaciones    | Fase 4               | ✅      |
 | 5   | Ingresar 4 dígitos            | Se inicia la validación                    | Fase 5               | ⬜      |
 | 6   | Contraseña correcta           | Aparece la imagen de acceso                | Fase 5               | ⬜      |
 | 7   | Contraseña incorrecta         | Aparece la imagen de error                 | Fase 5               | ⬜      |
 | 8   | Esperar 3 s                   | Desaparece la imagen de resultado          | Fase 5               | ⬜      |
 | 9   | Nueva contraseña              | El sistema permite un nuevo intento        | Fase 5               | ⬜      |
-| 10  | Funcionamiento continuo       | La matriz no parpadea de forma perceptible | Fase 2               | X      |
+| 10  | Funcionamiento continuo       | La matriz no parpadea de forma perceptible | Fase 2               | ✅      |
 
 Prueba adicional del reto opcional:
 
@@ -119,6 +119,41 @@ Aprendizaje: las imágenes de diagnóstico deben ser densas. La F tiene píxeles
 apagados por diseño y se confundieron con fallos; `img_test_all` localizó los
 pines mal conectados de un vistazo.
 
+### Fase 3 — Driver del teclado 4x4 ✅
+
+**2026-09-09** · rama `fase-3-driver-teclado`
+
+| # | Prueba | Resultado |
+|---|---|---|
+| 3.1 | Barrido IN-OUT de las 16 teclas | Cada tecla enciende su bloque 2x2 en la posición correcta ✅ |
+| 3.2 | Cobertura de la rejilla | Las 16 teclas tesela la matriz sin huecos ni solapes ✅ |
+| 3.3 | Reposo | Vuelve a la imagen de esquinas al soltar ✅ |
+| 3.4 | No bloqueo | El barrido no interrumpe el refresco de la matriz ✅ |
+| 3.5 | Rebote | Visible al pulsar, **como se esperaba**: lo resuelve la Fase 4 |
+
+Barrido a dos fases (activar en un tick, leer en el siguiente): 8 ms por barrido
+completo, sin ninguna espera activa.
+
+### Fase 4 — MEF de antirrebote ✅
+
+**2026-09-09** · rama `fase-4-antirrebote`
+
+| # | Prueba | Resultado |
+|---|---|---|
+| 4.1 | Una pulsación → un evento | D2 conmuta una sola vez ✅ |
+| 4.2 | Tecla mantenida 5 s | Un único cambio de D2, sin repeticiones ✅ |
+| 4.3 | Diez pulsaciones | Diez conmutaciones, ni una más ✅ |
+| 4.4 | Liberación | Vuelve a la imagen de reposo y acepta nuevas pulsaciones ✅ |
+| 4.5 | Rebote residual | Desaparece el parpadeo que se veía en la Fase 3 ✅ |
+
+Verificación previa por simulación de la MEF: pulsación con rebote sucio, tecla
+mantenida 8 s, rebote que nunca se estabiliza, segunda tecla sin soltar la
+primera y diez pulsaciones limpias. Los cinco casos dan el número exacto de
+eventos esperado.
+
+Umbral: 4 muestras separadas 8 ms = **24 ms**. Latencia de respuesta hasta 32 ms.
+
 ---
+
 ## Enlaces
 [[proyectos|Proyectos Electrónica]]

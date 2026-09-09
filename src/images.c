@@ -65,3 +65,17 @@ const uint8_t img_test_all[8] =
     0b11111111,
     0b11111111
 };
+
+/* Reposo: solo las cuatro esquinas. Confirma que el sistema sigue vivo cuando
+ * no hay ninguna tecla pulsada. */
+const uint8_t img_idle_corners[8] =
+{
+    0b10000001,
+    0b00000000,
+    0b00000000,
+    0b00000000,
+    0b00000000,
+    0b00000000,
+    0b00000000,
+    0b10000001
+};
