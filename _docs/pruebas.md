@@ -47,7 +47,7 @@ Prueba adicional del reto opcional:
 
 | # | Prueba | Resultado esperado | Fase | Estado |
 |---|---|---|---|---|
-| 11 | Tres contraseñas incorrectas seguidas | El sistema entra en bloqueo temporal y sale solo | Fase 7 | ⬜ |
+| 11 | Tres contraseñas incorrectas seguidas | El sistema entra en bloqueo temporal y sale solo | Fase 7 | — *no realizada* |
 
 ---
 
@@ -108,7 +108,7 @@ del `while(1)` ya es la definitiva.
 |---|---|---|
 | 2.1 | Multiplexado a 125 Hz | Sin parpadeo perceptible ✅ |
 | 2.2 | Blanking | Sin ghosting ✅ |
-| 2.3 | Orientación (`img_test_f`) | Correcta, los tres flags quedan en `0` ✅ |
+| 2.3 | Orientación (`img_test_f`) | Correcta: el montaje coincide con el convenio de los bitmaps ✅ |
 | 2.4 | Cableado (`img_test_border`, `img_test_all`) | Detectó dos columnas intercambiadas y una fila mal conectada; corregidas ✅ |
 | 2.5 | No bloqueo | Las imágenes rotan cada 2 s sin interrumpir el refresco ✅ |
 
@@ -173,6 +173,25 @@ vuelve a espera) y que las pulsaciones se ignoran durante esos 3 s.
 
 Verificación de ubicación en memoria sobre el `.elf`: `k_stored_password` y
 `k_key_to_digit` quedan en `.rodata`, en `0x0800…`, es decir **en FLASH**.
+
+### Fase 6 — MEF maestra e integración ✅
+
+**2026-09-09** · rama `fase-6-mef-maestra`
+
+| # | Prueba | Resultado |
+|---|---|---|
+| 6.1 | Autotest de arranque | Los 64 LED encienden 1 s en cada reset ✅ |
+| 6.2 | Transición a régimen permanente | Pasa solo a la imagen de espera ✅ |
+| 6.3 | Comportamiento tras el refactor | Idéntico al de la Fase 5 ✅ |
+| 6.4 | Multiplexado en todos los estados | Sin congelación durante autotest ni resultado ✅ |
+
+`main.c` queda en 35 líneas, sin lógica. Limpieza: se retiran `gpio_set` y
+`gpio_clear`, sin uso, y el literal `10` pasa a `IMG_DIGIT_COUNT`.
+
+Verificación sobre el `.elf`: `--gc-sections` elimina del binario los tres
+bitmaps de diagnóstico que ya no se referencian (`img_test_row0`, `img_test_f`,
+`img_test_border`). Se conservan en el código fuente, sin coste, como
+herramienta de diagnóstico.
 
 ---
 

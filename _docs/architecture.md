@@ -28,18 +28,16 @@ tags:
 
 ## 1. Principio de diseño
 
-Todo el sistema descansa sobre una única decisión: **nada bloquea**.
-
+Todo el sistema se soporta sobre una única decisión: **no bloqueante**.
 `SysTick` genera una base de tiempo de **1 ms**. Su rutina de interrupción hace
-lo mínimo posible (incrementar el contador de milisegundos y levantar una
-bandera). Todo el trabajo real ocurre en el `while(1)`, que en cada tick despacha
-las máquinas de estados **en orden fijo**. Cada MEF ejecuta *un paso* y devuelve
-el control inmediatamente.
+lo mínimo: **incrementar un contador de milisegundos**.
+Todo el trabajo real ocurre en el `while(1)`, que en cada tick despacha las
+máquinas de estados **en orden fijo**. Cada MEF ejecuta *un paso* y devuelve el
+control inmediatamente.
 
 Consecuencias directas:
-
 - No existe ningún `delay_ms()` ni ningún bucle de espera en el proyecto.
-- Los tiempos largos (antirrebote, 3 s de resultado, bloqueo) se miden con
+- Los tiempos largos (antirrebote, autotest de arranque, 3 s de resultado) se miden con
   **temporizadores software**: se guarda una marca de tiempo y se compara contra
   el contador de milisegundos. Mientras tanto el resto del sistema sigue vivo.
 - La matriz se sigue multiplexando durante los 3 s de la imagen de resultado,
@@ -52,7 +50,7 @@ Consecuencias directas:
 ```mermaid
 flowchart TD
     subgraph APP[Capa de aplicacion]
-        MASTER["main.c<br/>MEF MAESTRA"]
+        MASTER["master_fsm<br/>MEF MAESTRA"]
         SYS["system_fsm<br/>MEF de contrasena"]
         PW["password<br/>clave guardada y buffer"]
     end
@@ -92,10 +90,6 @@ flowchart TD
     GP --> HW2
 ```
 
-> [!important] Regla de acoplamiento
-> Las flechas de datos son **eventos y valores de retorno**, nunca variables
-> globales compartidas. Ninguna MEF lee el estado interno de otra: el teclado no
-> sabe qué es una contraseña y la MEF de contraseña no sabe qué es un GPIO.
 
 ---
 
@@ -144,9 +138,10 @@ depende de que la capa de aplicación se acuerde de filtrar.
 
 ## 5. MEF Maestra
 
-Vive en `main.c` y es la capa de integración. No contiene lógica de aplicación:
-inicializa, ordena el despacho y traduce el estado de la aplicación en un bitmap
-concreto.
+Vive en `master_fsm.c` y es la capa de integración. No contiene lógica de
+aplicación: inicializa, ordena el despacho y traduce la vista que pide la
+aplicación en un bitmap concreto. Gracias a ella, `main.c` se reduce a arrancar
+la máquina y darle el latido de 1 ms.
 
 ```mermaid
 stateDiagram-v2
@@ -156,7 +151,7 @@ stateDiagram-v2
     MASTER_INIT : MASTER_INIT
     MASTER_INIT : Relojes RCC, GPIO y SysTick
     MASTER_SELFTEST : MASTER_SELFTEST
-    MASTER_SELFTEST : Patron de arranque en la matriz
+    MASTER_SELFTEST : Autotest, los 64 LED encendidos
     MASTER_RUN : MASTER_RUN
     MASTER_RUN : Despacho cooperativo
 
@@ -166,13 +161,25 @@ stateDiagram-v2
 
     note right of MASTER_RUN
         Orden fijo de despacho en cada tick:
-        1. keypad_scan_step
-        2. keypad_debounce_step
-        3. system_fsm_step con el evento
-        4. traducir vista a bitmap
-        5. led_matrix_mux_step
+        1. keypad_scan_step        DRIVER
+        2. keypad_fsm_step         EVENTO
+        3. system_fsm_step         LOGICA
+        4. render, si la vista cambio
+        5. led_matrix_mux_step     DISPLAY
     end note
 ```
+
+> [!important] El multiplexado corre en todos los estados
+> `led_matrix_mux_step()` se ejecuta **fuera** del `switch` de estados, así que
+> se refresca la matriz también durante el autotest y durante los 3 s de la
+> imagen de resultado. Es lo que permite afirmar que ningún estado del sistema
+> congela el display.
+
+> [!note] El autotest no es decorativo
+> `MASTER_SELFTEST` enciende los 64 LED durante 1 s en cada arranque, de modo
+> que un LED o un hilo que dejen de responder se detectan antes de empezar a
+> usar el sistema. Usa `img_test_all`, la misma imagen que localizó los fallos
+> de cableado en la Fase 2.
 
 ---
 
@@ -256,11 +263,11 @@ Filas y columnas son salidas push-pull. El estado de la máquina **es** la fila
 activa: un anillo de ocho estados que avanza un paso por tick.
 
 La matriz es de **ánodo común en las columnas**, así que las columnas son
-activas en alto y las filas activas en bajo. Entre el bitmap y los pines hay
-tres correcciones de orientación (`MATRIX_TRANSPOSE`, `MATRIX_ROW_REVERSE`,
-`MATRIX_COL_REVERSE`) que se aplican en `led_matrix_show()`, no en el
-multiplexado: `show()` se ejecuta al cambiar de imagen y `mux_step()` mil veces
-por segundo.
+activas en alto y las filas activas en bajo. Entre el bitmap y los pines hay una
+única traducción: invertir el orden de los bits de cada fila, porque en el
+bitmap el bit 7 es la columna izquierda y en el hardware esa columna es `PD0`.
+Se aplica en `led_matrix_show()`, no en el multiplexado: `show()` se ejecuta al
+cambiar de imagen y `mux_step()` mil veces por segundo.
 
 ```mermaid
 stateDiagram-v2
@@ -325,12 +332,9 @@ stateDiagram-v2
     BLOQUEO --> ESPERA : temporizador de bloqueo expirado, fallos a cero
 ```
 
-> [!note] Reto adicional
-> `BLOQUEO` y el contador de fallos consecutivos están **previstos desde el
-> diseño** pero se implementan en la Fase 7. 
 
 Durante `INGRESANDO`, al soltar la tecla (`KEY_EVT_RELEASED`) la vista vuelve a
-la indicación de ingreso en curso, tal como pide el enunciado.
+la indicación de ingreso en curso.
 
 ---
 
@@ -343,7 +347,6 @@ la indicación de ingreso en curso, tal como pide el enunciado.
 | Teclado     | F0–F3   | `PB6`–`PB9` | Salida open-drain   | Activa en bajo                          |
 | Teclado     | C0–C3   | `PA1`–`PA4` | Entrada con pull-up | Lectura activa en bajo                  |
 | LED D2      | —       | `PA6`       | Salida push-pull    | Activo en bajo, solo diagnóstico        |
-
 
 ---
 ## Enlaces

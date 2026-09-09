@@ -91,8 +91,8 @@ máquina maestra) están en [`_docs/architecture.md`](_docs/architecture.md).
 - [x] **Fase 3** — Driver del teclado 4x4 y MEF de barrido IN-OUT.
 - [x] **Fase 4** — MEF de antirrebote y contrato de eventos entre módulos.
 - [x] **Fase 5** — MEF de sistema/contraseña y temporización no bloqueante de 3 s.
-- [ ] **Fase 6** — MEF maestra, integración final y limpieza de código.
-- [ ] **Fase 7** — Reto adicional: bloqueo temporal tras 3 intentos fallidos.
+- [x] **Fase 6** — MEF maestra, integración final y limpieza de código.
+- [ ] **Fase 7** — Reto adicional: bloqueo temporal tras 3 intentos fallidos. **No realizada** (descartada por tiempo).
 - [ ] **Fase 8** — Documentación de entregables y registro del uso de IA.
 
 ---
